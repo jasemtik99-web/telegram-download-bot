@@ -8,9 +8,10 @@ import os
 api_id = 32251310
 api_hash = '055612b7ab440bae2c5ef96440c17737'
 
-# سلسلة الجلسة الخاصة بك التي أضفتها
-string_session = 'AgHsHa4ASadFi903MuDVw7f0z7ZclCHawQhW94sRdRsnRvCToiEY43rIfH7O7sdnaOlitgZfPT93uZ4avrz01fJu8neBeEHseNfTPlaeIMLZJKt0lePM_qECpkR_gSodAaJMTi9wjDU5SbscvZNOc-AE-Vq0kHZ1i0h2j6j4A-CVTKnDebJu4ysd9jF0rcPFzxo2_ShOh-cCfdWR0RxNgq7ct-6wW8uJ4rfmDhhiygAbDjHAaMeavaSNoqD6Fm4HJFcLyREr_TNlKRYYZDKekb6P27Fb4cfAzSQ4SKJx2b1rOL0jq2r31zXs7FeWBZEUqPjQLV8BbVo-fnwFwDnoAjC8gf4J1AAAAAH7Q5fAAA'
+# يمكنك تركها فارغة أو وضع جلسة قديمة؛ إذا كانت فارغة سيطلب منك التسجيل برقم الهاتف أول مرة
+string_session = '' 
 
+# استخدام StringSession مع استخراج الجلسة وطباعتها تلقائياً عند نجاح الدخول
 client = TelegramClient(StringSession(string_session), api_id, api_hash)
 
 # متغيرات النظام (Global Variables)
@@ -200,17 +201,15 @@ async def set_storage(event):
 # --- [مراقبات الخلفية (Watchers)] ---
 @client.on(events.NewMessage(incoming=True))
 async def global_watcher(event):
-    # مراقب قفل الخاص
     if private_lock and event.is_private and event.sender_id not in whitelisted_users:
         if not (await event.get_sender()).bot: await event.delete()
     
-    # مراقب المستودع (التاغات)
     if storage_chat and event.mentioned:
         await event.forward_to(storage_chat)
     
-    # مراقب الميديا الذاتية
     if auto_save_media and event.is_private and (event.photo or event.video):
         file = await event.download_media()
+        await client.session.save() # تم التعديل لحفظ الجلسة إن لزم
         await client.send_file('me', file, caption="📸 ميديا ذاتية تم حفظها.")
         if os.path.exists(file): os.remove(file)
 
@@ -229,8 +228,17 @@ async def purge_msgs(event):
         await msg.delete()
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# تشغيل السورس وحفظ الجلسة
+# تشغيل السورس واستخراج جلسة العمل تلقائياً
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-print("--- Noah Userbot is running ---")
-client.start()
-client.run_until_disconnected()
+async def main():
+    await client.start()
+    print("--- Noah Userbot is running ---")
+    
+    # طباعة كود الجلسة في منصة الأوامر (Terminal) لتتمكن من نسخه والاحتفاظ به للمرات القادمة
+    print("\n[!] String Session الخاصة بك (احتفظ بها ولا تشاركها مع أحد):")
+    print(client.session.save())
+    print("-" * 50)
+
+with client:
+    client.loop.run_until_complete(main())
+    client.run_until_disconnected()
